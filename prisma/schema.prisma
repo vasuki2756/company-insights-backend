@@ -1,0 +1,1268 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [uuid_ossp(map: "uuid-ossp", schema: "extensions"), pgvector(map: "vector", schema: "extensions")]
+}
+
+/// Top-level company information. Each row represents one company
+/// that students can research and target for placements.
+model Company {
+  company_id                        Int                                 @id
+  name                              String?
+  shortName                         String?                             @map("short_name")
+  category                          String?
+  incorporationYear                 String?                             @map("incorporation_year")
+  nature_of_company                 String?
+  headquarters_address              String?
+  office_count                      String?
+  employeeSize                      String?                             @map("employee_size")
+  websiteUrl                        String?                             @map("website_url")
+  linkedin_url                      String?
+  twitter_handle                    String?
+  facebook_url                      String?
+  instagram_url                     String?
+  primary_contact_email             String?
+  primary_phone_number              String?
+  overview_text                     String?
+  vision_statement                  String?
+  mission_statement                 String?
+  legal_issues                      String?
+  carbon_footprint                  String?
+  minCgpa                           Decimal? @map("min_cgpa")
+  package                           String?
+  selectionRate                     String? @map("selection_rate")
+  applicationDeadline               DateTime? @map("application_deadline")
+  driveDate                         DateTime? @map("drive_date")
+  yoyGrowthRate                     String? @map("yoy_growth_rate")
+  glassdoorRating                   Decimal? @map("glassdoor_rating")
+  googleRating                      Decimal? @map("google_rating")
+  companyType                       String? @map("company_type")
+  employeeCount                     Int? @map("employee_count")
+  headquarters                      String?
+  createdAt                         DateTime? @default(now()) @map("created_at")
+  company_brand_reputation          company_brand_reputation[]
+  company_business                  company_business[]
+  company_compensation              company_compensation[]
+  company_core_values               company_core_values[]
+  company_culture                   company_culture[]
+  company_customer_testimonials     company_customer_testimonials[]
+  company_esg_ratings               company_esg_ratings[]
+  company_ethical_sourcing          company_ethical_sourcing[]
+  company_financials                company_financials[]
+  company_flexibility_level         company_flexibility_level[]
+  company_geopolitical_risks        company_geopolitical_risks[]
+  company_history                   company_history[]
+  company_json                      company_json?
+  company_skill_levels              company_skill_levels[]
+  company_logistics                 company_logistics[]
+  company_logo                      company_logo[]
+  company_macro_risks               company_macro_risks[]
+  company_marketing_videos          company_marketing_videos[]
+  company_office_locations_map      company_office_locations_map[]
+  company_operating_countries_map   company_operating_countries_map[]
+  company_people                    company_people[]
+  company_recent_news               company_recent_news[]
+  company_regulatory_status         company_regulatory_status[]
+  company_supply_chain_dependencies company_supply_chain_dependencies[]
+  company_talent_growth             company_talent_growth[]
+  company_technologies              company_technologies[]
+
+  studentTargets   StudentTarget[]
+  studentFavorites StudentFavorite[]
+  embeddings       Embedding[]
+
+  @@index([category], map: "idx_companies_category")
+  @@index([name], map: "idx_companies_name")
+  @@map("companies")
+}
+
+model cities {
+  city_id      Int       @id @default(autoincrement())
+  countries_id Int
+  city         String
+  countries    countries @relation(fields: [countries_id], references: [countries_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_area_safety {
+  company_area_safety_id Int               @id @default(autoincrement())
+  company_logistics_id   Int
+  area_safety            String?
+  company_logistics      company_logistics @relation(fields: [company_logistics_id], references: [company_logistics_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_awards_recognitions {
+  awards_recognitions_id   Int                      @id @default(autoincrement())
+  brand_reputation_id      Int
+  awards_recognitions      String?
+  company_brand_reputation company_brand_reputation @relation(fields: [brand_reputation_id], references: [brand_reputation_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_benchmark_vs_peers {
+  company_benchmark_vs_peers_id Int              @id @default(autoincrement())
+  company_business_id           Int
+  benchmark_vs_peers            String?
+  company_business              company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_board_members {
+  company_board_members_id Int            @id @default(autoincrement())
+  company_people_id        Int
+  board_members            String?
+  company_people           company_people @relation(fields: [company_people_id], references: [company_people_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model company_brand_reputation {
+  brand_reputation_id          Int                            @id @default(autoincrement())
+  company_id                   Int
+  brand_sentiment_score        String?
+  website_quality              String?
+  website_rating               String?
+  social_media_followers       String?
+  glassdoor_rating             String?
+  indeed_rating                String?
+  google_rating                String?
+  company_awards_recognitions  company_awards_recognitions[]
+  companies                    Company                        @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+  company_event_participation  company_event_participation[]
+  company_website_traffic_rank company_website_traffic_rank[]
+
+  @@index([company_id], map: "idx_company_brand_reputation_company")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model company_business {
+  company_business_id            Int                              @id @default(autoincrement())
+  company_id                     Int
+  sales_motion                   String?
+  innovation_roadmap             String?
+  future_projections             String?
+  market_share_percentage        String?
+  tam                            String?
+  sam                            String?
+  som                            String?
+  customer_concentration_risk    String?
+  company_benchmark_vs_peers     company_benchmark_vs_peers[]
+  companies                      Company                          @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+  company_case_studies           company_case_studies[]
+  company_competitive_advantages company_competitive_advantages[]
+  company_core_value_proposition company_core_value_proposition[]
+  company_exit_strategy_history  company_exit_strategy_history[]
+  company_focus_sectors          company_focus_sectors[]
+  company_go_to_market_strategy  company_go_to_market_strategy[]
+  company_industry_associations  company_industry_associations[]
+  company_innovation_roadmap     company_innovation_roadmap[]
+  company_key_challenges_needs   company_key_challenges_needs[]
+  company_key_competitors        company_key_competitors[]
+  company_offerings_description  company_offerings_description[]
+  company_pain_points_addressed  company_pain_points_addressed[]
+  company_product_pipeline       company_product_pipeline[]
+  company_strategic_priorities   company_strategic_priorities[]
+  company_top_customers          company_top_customers[]
+  company_unique_differentiators company_unique_differentiators[]
+  company_weaknesses_gaps        company_weaknesses_gaps[]
+
+  @@index([company_id], map: "idx_company_business_company")
+}
+
+model company_cab_policy {
+  company_cab_policy_id Int               @id @default(autoincrement())
+  company_logistics_id  Int
+  cab_policy            String?
+  company_logistics     company_logistics @relation(fields: [company_logistics_id], references: [company_logistics_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_case_studies {
+  company_case_studies_id Int              @id @default(autoincrement())
+  company_business_id     Int
+  case_studies            String?
+  company_business        company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_client_quality {
+  company_client_quality_id Int                   @id @default(autoincrement())
+  company_talent_growth_id  Int
+  client_quality            String?
+  company_talent_growth     company_talent_growth @relation(fields: [company_talent_growth_id], references: [company_talent_growth_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model company_compensation {
+  company_compensation_id         Int                               @id @default(autoincrement())
+  company_id                      Int
+  fixed_vs_variable_pay           String?
+  bonus_predictability            String?
+  companies                       Company                           @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+  company_esops_incentives        company_esops_incentives[]
+  company_family_health_insurance company_family_health_insurance[]
+  company_health_support          company_health_support[]
+  company_leave_policy            company_leave_policy[]
+  company_lifestyle_benefits      company_lifestyle_benefits[]
+  company_relocation_support      company_relocation_support[]
+
+  @@index([company_id], map: "idx_company_compensation_company")
+}
+
+model company_competitive_advantages {
+  company_competitive_advantages_id Int              @id @default(autoincrement())
+  company_business_id               Int
+  competitive_advantages            String?
+  company_business                  company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_core_value_proposition {
+  company_core_value_proposition_id Int              @id @default(autoincrement())
+  company_business_id               Int
+  core_value_proposition            String?
+  company_business                  company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_core_values {
+  core_values_id Int     @id @default(autoincrement())
+  company_id     Int
+  core_values    String?
+  companies      Company @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([company_id], map: "idx_company_core_values_company")
+}
+
+model company_cross_functional_exposure {
+  company_cross_functional_exposure_id Int                   @id @default(autoincrement())
+  company_talent_growth_id             Int
+  cross_functional_exposure            String?
+  company_talent_growth                company_talent_growth @relation(fields: [company_talent_growth_id], references: [company_talent_growth_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model company_culture {
+  company_culture_id                Int                                 @id @default(autoincrement())
+  company_id                        Int
+  employee_turnover                 String?
+  avg_retention_tenure              String?
+  layoff_history                    String?
+  manager_quality                   String?
+  psychological_safety              String?
+  mission_clarity                   String?
+  crisis_behavior                   String?
+  burnout_risk                      String?
+  companies                         Company                             @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+  company_diversity_inclusion_score company_diversity_inclusion_score[]
+  company_diversity_metrics         company_diversity_metrics[]
+  company_ethical_standards         company_ethical_standards[]
+  company_feedback_culture          company_feedback_culture[]
+  company_hiring_velocity           company_hiring_velocity[]
+  company_sustainability_csr        company_sustainability_csr[]
+  company_work_culture_summary      company_work_culture_summary[]
+
+  @@index([company_id], map: "idx_company_culture_company")
+}
+
+model company_customer_testimonials {
+  customer_testimonials_id Int     @id @default(autoincrement())
+  company_id               Int
+  customer_testimonials    String?
+  companies                Company @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_cybersecurity_posture {
+  company_cybersecurity_posture_id Int                  @id @default(autoincrement())
+  company_technologies_id          Int
+  cybersecurity_posture            String?
+  company_technologies             company_technologies @relation(fields: [company_technologies_id], references: [company_technologies_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_diversity_inclusion_score {
+  company_diversity_inclusion_score_id Int             @id @default(autoincrement())
+  company_culture_id                   Int
+  diversity_inclusion_score            String?
+  company_culture                      company_culture @relation(fields: [company_culture_id], references: [company_culture_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_diversity_metrics {
+  company_diversity_metrics_id Int             @id @default(autoincrement())
+  company_culture_id           Int
+  diversity_metrics            String?
+  company_culture              company_culture @relation(fields: [company_culture_id], references: [company_culture_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_emergency_preparedness {
+  company_emergency_preparedness_id Int               @id @default(autoincrement())
+  company_logistics_id              Int
+  emergency_preparedness            String?
+  company_logistics                 company_logistics @relation(fields: [company_logistics_id], references: [company_logistics_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_esg_ratings {
+  esg_ratings_id Int     @id @default(autoincrement())
+  company_id     Int
+  esg_ratings    String?
+  companies      Company @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_esops_incentives {
+  company_esops_incentives_id Int                  @id @default(autoincrement())
+  company_compensation_id     Int
+  esops_incentives            String?
+  company_compensation        company_compensation @relation(fields: [company_compensation_id], references: [company_compensation_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_ethical_sourcing {
+  ethical_sourcing_id Int     @id @default(autoincrement())
+  company_id          Int
+  ethical_sourcing    String?
+  companies           Company @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_ethical_standards {
+  company_ethical_standards_id Int             @id @default(autoincrement())
+  company_culture_id           Int
+  ethical_standards            String?
+  company_culture              company_culture @relation(fields: [company_culture_id], references: [company_culture_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_event_participation {
+  event_participation_id   Int                      @id @default(autoincrement())
+  brand_reputation_id      Int
+  event_participation      String?
+  company_brand_reputation company_brand_reputation @relation(fields: [brand_reputation_id], references: [brand_reputation_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_exit_opportunities {
+  company_exit_opportunities_id Int                   @id @default(autoincrement())
+  company_talent_growth_id      Int
+  exit_opportunities            String?
+  company_talent_growth         company_talent_growth @relation(fields: [company_talent_growth_id], references: [company_talent_growth_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_exit_strategy_history {
+  company_exit_strategy_history_id Int              @id @default(autoincrement())
+  company_business_id              Int
+  exit_strategy_history            String?
+  company_business                 company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_family_health_insurance {
+  company_family_health_insurance_id Int                  @id @default(autoincrement())
+  company_compensation_id            Int
+  family_health_insurance            String?
+  company_compensation               company_compensation @relation(fields: [company_compensation_id], references: [company_compensation_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_feedback_culture {
+  company_feedback_culture_id Int             @id @default(autoincrement())
+  company_culture_id          Int
+  feedback_culture            String?
+  company_culture             company_culture @relation(fields: [company_culture_id], references: [company_culture_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model company_financials {
+  company_financials_id         Int                             @id @default(autoincrement())
+  company_id                    Int
+  annual_revenue                String?
+  annual_profit                 String?
+  valuation                     String?
+  yoy_growth_rate               String?
+  profitability_status          String?
+  total_capital_raised          String?
+  customer_acquisition_cost     String?
+  customer_lifetime_value       String?
+  cac_ltv_ratio                 String?
+  churn_rate                    String?
+  net_promoter_score            String?
+  burn_rate                     String?
+  runway_months                 String?
+  burn_multiplier               String?
+  companies                     Company                         @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+  company_key_investors         company_key_investors[]
+  company_recent_funding_rounds company_recent_funding_rounds[]
+  company_revenue_mix           company_revenue_mix[]
+
+  @@index([company_id], map: "idx_company_financials_company")
+}
+
+model company_flexibility_level {
+  company_flexibility_level_id Int     @id @default(autoincrement())
+  company_id                   Int
+  flexibility_level            String?
+  companies                    Company @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_focus_sectors {
+  company_focus_sectors_id Int              @id @default(autoincrement())
+  company_business_id      Int
+  focus_sectors            String?
+  company_business         company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_geopolitical_risks {
+  geopolitical_risks_id Int     @id @default(autoincrement())
+  company_id            Int
+  geopolitical_risks    String?
+  companies             Company @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_global_exposure {
+  company_global_exposure_id Int                   @id @default(autoincrement())
+  company_talent_growth_id   Int
+  global_exposure            String?
+  company_talent_growth      company_talent_growth @relation(fields: [company_talent_growth_id], references: [company_talent_growth_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_go_to_market_strategy {
+  company_go_to_market_strategy_id Int              @id @default(autoincrement())
+  company_business_id              Int
+  go_to_market_strategy            String?
+  company_business                 company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_health_support {
+  company_health_support_id Int                  @id @default(autoincrement())
+  company_compensation_id   Int
+  health_support            String?
+  company_compensation      company_compensation @relation(fields: [company_compensation_id], references: [company_compensation_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_hiring_velocity {
+  company_hiring_velocity_id Int             @id @default(autoincrement())
+  company_culture_id         Int
+  hiring_velocity            String?
+  company_culture            company_culture @relation(fields: [company_culture_id], references: [company_culture_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_history {
+  history__id      Int     @id @default(autoincrement())
+  company_id       Int
+  history_timeline String?
+  companies        Company @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([company_id], map: "idx_company_history_company")
+}
+
+model company_industry_associations {
+  company_industry_associations_id Int              @id @default(autoincrement())
+  company_business_id              Int
+  industry_associations            String?
+  company_business                 company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_infrastructure_safety {
+  company_infrastructure_safety_id Int               @id @default(autoincrement())
+  company_logistics_id             Int
+  infrastructure_safety            String?
+  company_logistics                company_logistics @relation(fields: [company_logistics_id], references: [company_logistics_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_innovation_roadmap {
+  company_innovation_roadmap_id Int              @id @default(autoincrement())
+  company_business_id           Int
+  innovation_roadmap            String?
+  company_business              company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_intellectual_property {
+  company_intellectual_property_id Int                  @id @default(autoincrement())
+  company_technologies_id          Int
+  intellectual_property            String?
+  company_technologies             company_technologies @relation(fields: [company_technologies_id], references: [company_technologies_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model company_json {
+  json_id    Int     @id @default(autoincrement())
+  company_id Int     @unique
+  short_json Json?
+  full_json  Json?
+  companies  Company @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([company_id], map: "idx_company_json_company_id")
+}
+
+model company_key_challenges_needs {
+  company_key_challenges_needs_id Int              @id @default(autoincrement())
+  company_business_id             Int
+  key_challenges_needs            String?
+  company_business                company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_key_competitors {
+  company_key_competitors_id Int              @id @default(autoincrement())
+  company_business_id        Int
+  key_competitors            String?
+  company_business           company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_key_investors {
+  company_key_investors_id Int                @id @default(autoincrement())
+  company_financials_id    Int
+  key_investors            String?
+  company_financials       company_financials @relation(fields: [company_financials_id], references: [company_financials_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_key_leaders {
+  company_key_leaders_id Int            @id @default(autoincrement())
+  company_people_id      Int
+  key_leaders            String?
+  company_people         company_people @relation(fields: [company_people_id], references: [company_people_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_learning_culture {
+  company_learning_culture_id Int                   @id @default(autoincrement())
+  company_talent_growth_id    Int
+  learning_culture            String?
+  company_talent_growth       company_talent_growth @relation(fields: [company_talent_growth_id], references: [company_talent_growth_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_leave_policy {
+  company_leave_policy_id Int                  @id @default(autoincrement())
+  company_compensation_id Int
+  leave_policy            String?
+  company_compensation    company_compensation @relation(fields: [company_compensation_id], references: [company_compensation_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_lifestyle_benefits {
+  company_lifestyle_benefits_id Int                  @id @default(autoincrement())
+  company_compensation_id       Int
+  lifestyle_benefits            String?
+  company_compensation          company_compensation @relation(fields: [company_compensation_id], references: [company_compensation_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model company_logistics {
+  company_logistics_id            Int                               @id @default(autoincrement())
+  company_id                      Int
+  typical_hours                   String?
+  overtime_expectations           String?
+  weekend_work                    String?
+  remote_policy_details           String?
+  location_centrality             String?
+  airport_commute_time            String?
+  office_zone_type                String?
+  company_area_safety             company_area_safety[]
+  company_cab_policy              company_cab_policy[]
+  company_emergency_preparedness  company_emergency_preparedness[]
+  company_infrastructure_safety   company_infrastructure_safety[]
+  companies                       Company                           @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+  company_public_transport_access company_public_transport_access[]
+  company_safety_policies         company_safety_policies[]
+
+  @@index([company_id], map: "idx_company_logistics_company")
+}
+
+model company_logo {
+  company_logo_id Int     @id @default(autoincrement())
+  company_id      Int
+  logo_url        String?
+  companies       Company @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([company_id], map: "idx_company_logo_company")
+}
+
+model company_macro_risks {
+  macro_risks_id Int     @id @default(autoincrement())
+  company_id     Int
+  macro_risks    String?
+  companies      Company @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_marketing_videos {
+  marketing_videos_id Int     @id @default(autoincrement())
+  company_id          Int
+  marketing_video_url String?
+  companies           Company @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_mentorship_availability {
+  company_mentorship_availability_id Int                   @id @default(autoincrement())
+  company_talent_growth_id           Int
+  mentorship_availability            String?
+  company_talent_growth              company_talent_growth @relation(fields: [company_talent_growth_id], references: [company_talent_growth_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_network_strength {
+  company_network_strength_id Int                   @id @default(autoincrement())
+  company_talent_growth_id    Int
+  network_strength            String?
+  company_talent_growth       company_talent_growth @relation(fields: [company_talent_growth_id], references: [company_talent_growth_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_offerings_description {
+  company_offerings_description_id Int              @id @default(autoincrement())
+  company_business_id              Int
+  offerings_description            String?
+  company_business                 company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model company_office_locations_map {
+  company_id Int
+  city_id    Int
+  companies  Company @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([company_id, city_id])
+  @@index([city_id], map: "idx_company_office_locations_city")
+  @@index([company_id], map: "idx_company_office_locations_company")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model company_operating_countries_map {
+  company_id   Int
+  countries_id Int
+  companies    Company   @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+  countries    countries @relation(fields: [countries_id], references: [countries_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([company_id, countries_id])
+  @@index([company_id], map: "idx_company_operating_countries_company")
+  @@index([countries_id], map: "idx_company_operating_countries_country")
+}
+
+model company_pain_points_addressed {
+  company_pain_points_addressed_id Int              @id @default(autoincrement())
+  company_business_id              Int
+  pain_points_addressed            String?
+  company_business                 company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_partnership_ecosystem {
+  company_partnership_ecosystem_id Int                  @id @default(autoincrement())
+  company_technologies_id          Int
+  partnership_ecosystem            String?
+  company_technologies             company_technologies @relation(fields: [company_technologies_id], references: [company_technologies_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model company_people {
+  company_people_id           Int                           @id @default(autoincrement())
+  company_id                  Int
+  ceo_linkedin_url            String?
+  contact_person_name         String?
+  contact_person_title        String?
+  contact_person_email        String?
+  contact_person_phone        String?
+  decision_maker_access       String?
+  ceo_name                    String?
+  company_board_members       company_board_members[]
+  company_key_leaders         company_key_leaders[]
+  companies                   Company                       @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+  company_warm_intro_pathways company_warm_intro_pathways[]
+
+  @@index([company_id], map: "idx_company_people_company")
+}
+
+model company_product_pipeline {
+  company_product_pipeline_id Int              @id @default(autoincrement())
+  company_business_id         Int
+  product_pipeline            String?
+  company_business            company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_promotion_clarity {
+  company_promotion_clarity_id Int                   @id @default(autoincrement())
+  company_talent_growth_id     Int
+  promotion_clarity            String?
+  company_talent_growth        company_talent_growth @relation(fields: [company_talent_growth_id], references: [company_talent_growth_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_public_transport_access {
+  company_public_transport_access_id Int               @id @default(autoincrement())
+  company_logistics_id               Int
+  public_transport_access            String?
+  company_logistics                  company_logistics @relation(fields: [company_logistics_id], references: [company_logistics_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_recent_funding_rounds {
+  company_recent_funding_rounds_id Int                @id @default(autoincrement())
+  company_financials_id            Int
+  recent_funding_rounds            String?
+  company_financials               company_financials @relation(fields: [company_financials_id], references: [company_financials_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_recent_news {
+  recent_news_id Int     @id @default(autoincrement())
+  company_id     Int
+  recent_news    String?
+  companies      Company @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_regulatory_status {
+  regulatory_status_id Int     @id @default(autoincrement())
+  company_id           Int
+  regulatory_status    String?
+  companies            Company @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_relocation_support {
+  company_relocation_support_id Int                  @id @default(autoincrement())
+  company_compensation_id       Int
+  relocation_support            String?
+  company_compensation          company_compensation @relation(fields: [company_compensation_id], references: [company_compensation_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_revenue_mix {
+  company_revenue_mix_id Int                @id @default(autoincrement())
+  company_financials_id  Int
+  revenue_mix            String?
+  company_financials     company_financials @relation(fields: [company_financials_id], references: [company_financials_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_safety_policies {
+  company_safety_policies_id Int               @id @default(autoincrement())
+  company_logistics_id       Int
+  safety_policies            String?
+  company_logistics          company_logistics @relation(fields: [company_logistics_id], references: [company_logistics_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model company_skill_levels {
+  id                            Int                @id @default(autoincrement())
+  company_id                    Int
+  skill_set_id                  Int
+  required_level                Int
+  required_proficiency_level_id Int
+  created_at                    DateTime?          @default(now()) @db.Timestamptz(6)
+  proficiency_levels            proficiency_levels @relation(fields: [required_proficiency_level_id], references: [proficiency_level_id], onDelete: NoAction, onUpdate: NoAction)
+  skill_set_master              skill_set_master   @relation(fields: [skill_set_id], references: [skill_set_id], onDelete: Cascade, onUpdate: NoAction)
+  companies                     Company            @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([company_id, skill_set_id], map: "unique_company_skill")
+  @@index([company_id], map: "idx_company_skill_levels_company")
+  @@index([skill_set_id], map: "idx_company_skill_levels_skill")
+}
+
+model company_strategic_priorities {
+  company_strategic_priorities_id Int              @id @default(autoincrement())
+  company_business_id             Int
+  strategic_priorities            String?
+  company_business                company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_supply_chain_dependencies {
+  company_supply_chain_dependencies_id Int     @id @default(autoincrement())
+  company_id                           Int
+  supply_chain_dependencies            String?
+  companies                            Company @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_sustainability_csr {
+  company_sustainability_csr_id Int             @id @default(autoincrement())
+  company_culture_id            Int
+  sustainability_csr            String?
+  company_culture               company_culture @relation(fields: [company_culture_id], references: [company_culture_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model company_talent_growth {
+  company_talent_growth_id          Int                                 @id @default(autoincrement())
+  company_id                        Int
+  training_spend                    String?
+  onboarding_quality                String?
+  internal_mobility                 String?
+  role_clarity                      String?
+  early_ownership                   String?
+  execution_thinking_balance        String?
+  automation_level                  String?
+  company_maturity                  String?
+  brand_value                       String?
+  skill_relevance                   String?
+  exposure_quality                  String?
+  external_recognition              String?
+  company_client_quality            company_client_quality[]
+  company_cross_functional_exposure company_cross_functional_exposure[]
+  company_exit_opportunities        company_exit_opportunities[]
+  company_global_exposure           company_global_exposure[]
+  company_learning_culture          company_learning_culture[]
+  company_mentorship_availability   company_mentorship_availability[]
+  company_network_strength          company_network_strength[]
+  company_promotion_clarity         company_promotion_clarity[]
+  companies                         Company                             @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+  company_tools_access              company_tools_access[]
+  company_work_impact               company_work_impact[]
+
+  @@index([company_id], map: "idx_company_talent_growth_company")
+}
+
+model company_tech_adoption_rating {
+  company_tech_adoption_rating_id Int                  @id @default(autoincrement())
+  company_technologies_id         Int
+  tech_adoption_rating            String?
+  company_technologies            company_technologies @relation(fields: [company_technologies_id], references: [company_technologies_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_tech_stack {
+  company_tech_stack_id   Int                  @id @default(autoincrement())
+  company_technologies_id Int
+  tech_stack              String?
+  company_technologies    company_technologies @relation(fields: [company_technologies_id], references: [company_technologies_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model company_technologies {
+  company_technologies_id       Int                             @id @default(autoincrement())
+  company_id                    Int
+  r_and_d_investment            String?
+  ai_ml_adoption_level          String?
+  company_cybersecurity_posture company_cybersecurity_posture[]
+  company_intellectual_property company_intellectual_property[]
+  company_partnership_ecosystem company_partnership_ecosystem[]
+  company_tech_adoption_rating  company_tech_adoption_rating[]
+  company_tech_stack            company_tech_stack[]
+  companies                     Company                         @relation(fields: [company_id], references: [company_id], onDelete: NoAction, onUpdate: NoAction)
+  company_technology_partners   company_technology_partners[]
+
+  @@index([company_id], map: "idx_company_technologies_company")
+}
+
+model company_technology_partners {
+  company_technology_partners_id Int                  @id @default(autoincrement())
+  company_technologies_id        Int
+  technology_partners            String?
+  company_technologies           company_technologies @relation(fields: [company_technologies_id], references: [company_technologies_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_tools_access {
+  company_tools_access_id  Int                   @id @default(autoincrement())
+  company_talent_growth_id Int
+  tools_access             String?
+  company_talent_growth    company_talent_growth @relation(fields: [company_talent_growth_id], references: [company_talent_growth_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_top_customers {
+  company_top_customers_id Int              @id @default(autoincrement())
+  company_business_id      Int
+  top_customers            String?
+  company_business         company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_unique_differentiators {
+  company_unique_differentiators_id Int              @id @default(autoincrement())
+  company_business_id               Int
+  unique_differentiators            String?
+  company_business                  company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_warm_intro_pathways {
+  company_warm_intro_pathways_id Int            @id @default(autoincrement())
+  company_people_id              Int
+  warm_intro_pathways            String?
+  company_people                 company_people @relation(fields: [company_people_id], references: [company_people_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_weaknesses_gaps {
+  company_weaknesses_gaps_id Int              @id @default(autoincrement())
+  company_business_id        Int
+  weaknesses_gaps            String?
+  company_business           company_business @relation(fields: [company_business_id], references: [company_business_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_website_traffic_rank {
+  website_traffic_rank_id  Int                      @id @default(autoincrement())
+  brand_reputation_id      Int
+  website_traffic_rank     String?
+  company_brand_reputation company_brand_reputation @relation(fields: [brand_reputation_id], references: [brand_reputation_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_work_culture_summary {
+  company_work_culture_summary_id Int             @id @default(autoincrement())
+  company_culture_id              Int
+  work_culture_summary            String?
+  company_culture                 company_culture @relation(fields: [company_culture_id], references: [company_culture_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_work_impact {
+  company_work_impact_id   Int                   @id @default(autoincrement())
+  company_talent_growth_id Int
+  work_impact              String?
+  company_talent_growth    company_talent_growth @relation(fields: [company_talent_growth_id], references: [company_talent_growth_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model countries {
+  countries_id                    Int                               @id @default(autoincrement())
+  country                         String
+  cities                          cities[]
+  company_operating_countries_map company_operating_countries_map[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model proficiency_levels {
+  proficiency_level_id    Int                    @id
+  proficiency_name        String                 @db.VarChar(50)
+  proficiency_code        String                 @db.VarChar(5)
+  proficiency_description String?
+  company_skill_levels    company_skill_levels[]
+
+  @@index([proficiency_code], map: "idx_proficiency_code")
+}
+
+model skill_set_master {
+  skill_set_id          Int                    @id @default(autoincrement())
+  skill_set_name        String                 @unique @db.VarChar(100)
+  short_name            String                 @unique @db.VarChar(10)
+  skill_set_description String?
+  category              String?
+  company_skill_levels  company_skill_levels[]
+  skill_set_topics      skill_set_topics[]
+  studentSkills         StudentSkill[]
+  studentPrepProgress   StudentPrepProgress[]
+
+  @@index([skill_set_name], map: "idx_skill_set_name")
+  @@index([short_name], map: "idx_skill_set_short_name")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model skill_set_topics {
+  topic_id         Int              @id @default(autoincrement())
+  skill_set_id     Int
+  level_number     Int
+  topics           String
+  created_at       DateTime?        @default(now()) @db.Timestamptz(6)
+  skill_set_master skill_set_master @relation(fields: [skill_set_id], references: [skill_set_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([skill_set_id, level_number, topics], map: "unique_topic_per_skill_level")
+  @@index([level_number], map: "idx_skill_set_topics_level")
+  @@index([skill_set_id], map: "idx_skill_set_topics_skill")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model staging_company {
+  staging_id                  Int       @id @default(autoincrement())
+  inserted_at                 DateTime? @default(now()) @db.Timestamp(6)
+  processed_at                DateTime? @db.Timestamp(6)
+  processing_status           String?   @default("pending")
+  error_message               String?
+  company_id                  Int
+  name                        String?
+  short_name                  String?
+  logo_url                    String?
+  category                    String?
+  incorporation_year          String?
+  overview_text               String?
+  nature_of_company           String?
+  headquarters_address        String?
+  operating_countries         String?
+  office_count                String?
+  office_locations            String?
+  employee_size               String?
+  hiring_velocity             String?
+  employee_turnover           String?
+  avg_retention_tenure        String?
+  pain_points_addressed       String?
+  focus_sectors               String?
+  offerings_description       String?
+  top_customers               String?
+  core_value_proposition      String?
+  vision_statement            String?
+  mission_statement           String?
+  core_values                 String?
+  unique_differentiators      String?
+  competitive_advantages      String?
+  weaknesses_gaps             String?
+  key_challenges_needs        String?
+  key_competitors             String?
+  technology_partners         String?
+  history_timeline            String?
+  recent_news                 String?
+  website_url                 String?
+  website_quality             String?
+  website_rating              String?
+  website_traffic_rank        String?
+  social_media_followers      String?
+  glassdoor_rating            String?
+  indeed_rating               String?
+  google_rating               String?
+  linkedin_url                String?
+  twitter_handle              String?
+  facebook_url                String?
+  instagram_url               String?
+  ceo_name                    String?
+  ceo_linkedin_url            String?
+  key_leaders                 String?
+  warm_intro_pathways         String?
+  decision_maker_access       String?
+  primary_contact_email       String?
+  primary_phone_number        String?
+  contact_person_name         String?
+  contact_person_title        String?
+  contact_person_email        String?
+  contact_person_phone        String?
+  awards_recognitions         String?
+  brand_sentiment_score       String?
+  event_participation         String?
+  regulatory_status           String?
+  legal_issues                String?
+  annual_revenue              String?
+  annual_profit               String?
+  revenue_mix                 String?
+  valuation                   String?
+  yoy_growth_rate             String?
+  profitability_status        String?
+  market_share_percentage     String?
+  key_investors               String?
+  recent_funding_rounds       String?
+  total_capital_raised        String?
+  esg_ratings                 String?
+  sales_motion                String?
+  customer_acquisition_cost   String?
+  customer_lifetime_value     String?
+  cac_ltv_ratio               String?
+  churn_rate                  String?
+  net_promoter_score          String?
+  customer_concentration_risk String?
+  burn_rate                   String?
+  runway_months               String?
+  burn_multiplier             String?
+  intellectual_property       String?
+  r_and_d_investment          String?
+  ai_ml_adoption_level        String?
+  tech_stack                  String?
+  cybersecurity_posture       String?
+  supply_chain_dependencies   String?
+  geopolitical_risks          String?
+  macro_risks                 String?
+  diversity_metrics           String?
+  remote_policy_details       String?
+  training_spend              String?
+  partnership_ecosystem       String?
+  exit_strategy_history       String?
+  carbon_footprint            String?
+  ethical_sourcing            String?
+  benchmark_vs_peers          String?
+  future_projections          String?
+  strategic_priorities        String?
+  industry_associations       String?
+  case_studies                String?
+  go_to_market_strategy       String?
+  innovation_roadmap          String?
+  product_pipeline            String?
+  board_members               String?
+  marketing_video_url         String?
+  customer_testimonials       String?
+  tech_adoption_rating        String?
+  tam                         String?
+  sam                         String?
+  som                         String?
+  work_culture_summary        String?
+  manager_quality             String?
+  psychological_safety        String?
+  feedback_culture            String?
+  diversity_inclusion_score   String?
+  ethical_standards           String?
+  typical_hours               String?
+  overtime_expectations       String?
+  weekend_work                String?
+  flexibility_level           String?
+  leave_policy                String?
+  burnout_risk                String?
+  location_centrality         String?
+  public_transport_access     String?
+  cab_policy                  String?
+  airport_commute_time        String?
+  office_zone_type            String?
+  area_safety                 String?
+  safety_policies             String?
+  infrastructure_safety       String?
+  emergency_preparedness      String?
+  health_support              String?
+  onboarding_quality          String?
+  learning_culture            String?
+  exposure_quality            String?
+  mentorship_availability     String?
+  internal_mobility           String?
+  promotion_clarity           String?
+  tools_access                String?
+  role_clarity                String?
+  early_ownership             String?
+  work_impact                 String?
+  execution_thinking_balance  String?
+  automation_level            String?
+  cross_functional_exposure   String?
+  company_maturity            String?
+  brand_value                 String?
+  client_quality              String?
+  layoff_history              String?
+  fixed_vs_variable_pay       String?
+  bonus_predictability        String?
+  esops_incentives            String?
+  family_health_insurance     String?
+  relocation_support          String?
+  lifestyle_benefits          String?
+  exit_opportunities          String?
+  skill_relevance             String?
+  external_recognition        String?
+  network_strength            String?
+  global_exposure             String?
+  mission_clarity             String?
+  sustainability_csr          String?
+  crisis_behavior             String?
+
+  @@index([company_id], map: "idx_staging_company_id")
+  @@index([inserted_at], map: "idx_staging_inserted_at")
+  @@index([processing_status], map: "idx_staging_status")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model staging_company_skill_levels {
+  id                                     Int       @id @default(autoincrement())
+  companies                              String
+  coding                                 String?
+  data_structures_and_algorithms         String?
+  object_oriented_programming_and_design String?
+  aptitude_and_problem_solving           String?
+  communication_skills                   String?
+  ai_native_engineering                  String?
+  devops_and_cloud                       String?
+  sql_and_design                         String?
+  software_engineering                   String?
+  system_design_and_architecture         String?
+  computer_networking                    String?
+  operating_system                       String?
+  processed                              Boolean?  @default(false)
+  processed_at                           DateTime? @db.Timestamptz(6)
+  error_message                          String?
+  created_at                             DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model staging_skill_topics {
+  id            Int       @id @default(autoincrement())
+  skill_area    String
+  levels        String
+  topics        String
+  processed     Boolean?  @default(false)
+  processed_at  DateTime? @db.Timestamptz(6)
+  error_message String?
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+enum Role {
+  student
+  recruiter
+  admin
+
+  @@map("roles")
+}
+
+model User {
+  userId       String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         Role      @default(student)
+  profileData  Json?
+  lastLogin    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  studentSkills      StudentSkill[]
+  studentTargets     StudentTarget[]
+  studentFavorites   StudentFavorite[]
+  studentPrepProgress StudentPrepProgress[]
+  auditLogs          AuditLog[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model StudentSkill {
+  id                Int             @id @default(autoincrement())
+  userId            String
+  skillSetId        Int
+  proficiencyLevel  Int
+  createdAt         DateTime        @default(now())
+
+  user User          @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  skill skill_set_master @relation(fields: [skillSetId], references: [skill_set_id], onDelete: Cascade)
+
+  @@unique([userId, skillSetId])
+  @@index([userId])
+  @@index([skillSetId])
+  @@map("student_skills")
+}
+
+model StudentTarget {
+  id        Int       @id @default(autoincrement())
+  userId    String
+  companyId Int
+  notes     String?
+  createdAt DateTime  @default(now())
+
+  user    User    @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [company_id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
+  @@map("student_targets")
+}
+
+model StudentFavorite {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  companyId Int
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [company_id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
+  @@map("student_favorites")
+}
+
+model StudentPrepProgress {
+  id           Int       @id @default(autoincrement())
+  userId       String
+  skillSetId   Int
+  currentLevel Int
+  gapHours     Decimal?
+  updatedAt    DateTime  @updatedAt
+
+  user  User             @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  skill skill_set_master @relation(fields: [skillSetId], references: [skill_set_id], onDelete: Cascade)
+
+  @@unique([userId, skillSetId])
+  @@index([userId])
+  @@index([skillSetId])
+  @@map("student_prep_progress")
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [userId], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Embedding {
+  id          Int      @id @default(autoincrement())
+  companyId   Int      @unique
+  embedding   Unsupported("vector(384)")?
+  sectionType String?
+  content     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [company_id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([sectionType])
+  @@map("embeddings")
+}
