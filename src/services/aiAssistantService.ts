@@ -177,9 +177,8 @@ export async function generateAssistantResponse(
 
   const systemPrompt = buildSystemPrompt();
   const ragPrompt = buildRagPrompt(userMessage, context, history);
-  const fullPrompt = `${systemPrompt}\n\n${ragPrompt}`;
 
-  const responseText = await groqGenerate(fullPrompt);
+  const responseText = await groqGenerate(ragPrompt, systemPrompt);
 
   const assistantMsg: AIChatMessage = {
     role: "assistant",

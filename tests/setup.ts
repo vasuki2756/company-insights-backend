@@ -20,13 +20,35 @@ vi.mock("../src/lib/db", () => ({
     },
     auditLog: {
       create: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
     },
     company_json: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
     },
     company_skill_levels: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
+      count: vi.fn(),
+    },
+    skill_set_master: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      count: vi.fn(),
+    },
+    embedding: {
+      count: vi.fn(),
+    },
+    studentSkill: {
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+    },
+    studentTarget: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      deleteMany: vi.fn(),
     },
     $queryRaw: vi.fn(),
   },

@@ -3,7 +3,7 @@ import pino from "pino";
 
 const logger = pino({ name: "llm" });
 
-const GROQ_MODEL = process.env.GROQ_MODEL ?? "llama3-70b-8192";
+const GROQ_MODEL = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
 const GROQ_API_KEY = process.env.GROQ_API_KEY ?? "";
 
 let groqModel: ChatGroq | null = null;
@@ -23,14 +23,19 @@ function getGroqModel(): ChatGroq {
   return groqModel;
 }
 
-export async function generateResponse(prompt: string): Promise<string> {
+export async function generateResponse(
+  prompt: string,
+  systemPrompt?: string,
+): Promise<string> {
   const start = performance.now();
   try {
     const model = getGroqModel();
-    const response = await model.invoke([
-      { role: "system", content: "You are a helpful placement assistant." },
-      { role: "user", content: prompt },
-    ]);
+    const messages: Array<{ role: "system" | "user"; content: string }> = [];
+    if (systemPrompt) {
+      messages.push({ role: "system", content: systemPrompt });
+    }
+    messages.push({ role: "user", content: prompt });
+    const response = await model.invoke(messages);
     const duration = (performance.now() - start).toFixed(0);
     const content = response.content as string;
     logger.info({ duration: `${duration}ms`, model: GROQ_MODEL }, "Groq response generated");

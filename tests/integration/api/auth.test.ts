@@ -103,6 +103,15 @@ describe("POST /api/v1/auth/register", () => {
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
   });
+
+  it("returns 500 when DB fails", async () => {
+    vi.mocked(db.user.findUnique).mockRejectedValue(new Error("DB down"));
+    const app = createApp();
+    const res = await request(app)
+      .post("/api/v1/auth/register")
+      .send({ email: "test@example.com", password: "password123", name: "Test" });
+    expect(res.status).toBe(500);
+  });
 });
 
 describe("POST /api/v1/auth/login", () => {
@@ -156,6 +165,15 @@ describe("POST /api/v1/auth/login", () => {
 
     expect(res.status).toBe(400);
   });
+
+  it("returns 500 when DB fails", async () => {
+    vi.mocked(db.user.findUnique).mockRejectedValue(new Error("DB down"));
+    const app = createApp();
+    const res = await request(app)
+      .post("/api/v1/auth/login")
+      .send({ email: "test@example.com", password: "password123" });
+    expect(res.status).toBe(500);
+  });
 });
 
 describe("GET /api/v1/auth/me", () => {
@@ -199,5 +217,112 @@ describe("GET /api/v1/auth/me", () => {
 
     expect(res.status).toBe(401);
     expect(res.body.error).toMatch(/Authentication required/);
+  });
+
+  it("returns 404 when user not found", async () => {
+    const { requireAuth } = await import("../../../src/middleware/auth");
+    vi.mocked(requireAuth).mockImplementation((req: any, _res: any, next: any) => {
+      req.user = { sub: "missing-id", email: "missing@test.com", role: "student", iat: 0, exp: 9999999999 };
+      next();
+    });
+    vi.mocked(db.user.findUnique).mockResolvedValue(null);
+
+    const app = createApp();
+    const res = await request(app).get("/api/v1/auth/me").set("Authorization", "Bearer token");
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/v1/auth/logout", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("logs out successfully", async () => {
+    const { requireAuth } = await import("../../../src/middleware/auth");
+    vi.mocked(requireAuth).mockImplementation((req: any, _res: any, next: any) => {
+      req.user = { sub: mockUser.userId, email: mockUser.email, role: mockUser.role, iat: 0, exp: 9999999999 };
+      next();
+    });
+    vi.mocked(db.auditLog.create).mockResolvedValue({ id: 1 } as any);
+
+    const app = createApp();
+    const res = await request(app).post("/api/v1/auth/logout").set("Authorization", "Bearer test-jwt-token");
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it("returns 500 when audit log fails", async () => {
+    const { requireAuth } = await import("../../../src/middleware/auth");
+    vi.mocked(requireAuth).mockImplementation((req: any, _res: any, next: any) => {
+      req.user = { sub: mockUser.userId, email: mockUser.email, role: mockUser.role, iat: 0, exp: 9999999999 };
+      next();
+    });
+    const { revokeToken } = await import("../../../src/lib/auth");
+    vi.mocked(revokeToken).mockRejectedValue(new Error("Redis down"));
+
+    const app = createApp();
+    const res = await request(app).post("/api/v1/auth/logout").set("Authorization", "Bearer token");
+    expect(res.status).toBe(500);
+  });
+});
+
+describe("POST /api/v1/auth/change-password", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("changes password successfully", async () => {
+    const { requireAuth } = await import("../../../src/middleware/auth");
+    vi.mocked(requireAuth).mockImplementation((req: any, _res: any, next: any) => {
+      req.user = { sub: mockUser.userId, email: mockUser.email, role: mockUser.role, iat: 0, exp: 9999999999 };
+      next();
+    });
+    vi.mocked(db.user.findUnique).mockResolvedValue(mockUser);
+    vi.mocked(db.auditLog.create).mockResolvedValue({ id: 1 } as any);
+
+    const app = createApp();
+    const res = await request(app)
+      .post("/api/v1/auth/change-password")
+      .set("Authorization", "Bearer token")
+      .send({ currentPassword: "password123", newPassword: "newpassword456" });
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it("returns 400 when new password is same as current", async () => {
+    const { requireAuth } = await import("../../../src/middleware/auth");
+    vi.mocked(requireAuth).mockImplementation((req: any, _res: any, next: any) => {
+      req.user = { sub: mockUser.userId, email: mockUser.email, role: mockUser.role, iat: 0, exp: 9999999999 };
+      next();
+    });
+    vi.mocked(db.user.findUnique).mockResolvedValue(mockUser);
+
+    const app = createApp();
+    const res = await request(app)
+      .post("/api/v1/auth/change-password")
+      .set("Authorization", "Bearer token")
+      .send({ currentPassword: "password123", newPassword: "password123" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/different/);
+  });
+
+  it("returns 401 for wrong current password", async () => {
+    const { requireAuth } = await import("../../../src/middleware/auth");
+    vi.mocked(requireAuth).mockImplementation((req: any, _res: any, next: any) => {
+      req.user = { sub: mockUser.userId, email: mockUser.email, role: mockUser.role, iat: 0, exp: 9999999999 };
+      next();
+    });
+    vi.mocked(db.user.findUnique).mockResolvedValue({
+      ...mockUser,
+      passwordHash: "hashed_different",
+    });
+
+    const app = createApp();
+    const res = await request(app)
+      .post("/api/v1/auth/change-password")
+      .set("Authorization", "Bearer token")
+      .send({ currentPassword: "wrongpassword", newPassword: "newpassword456" });
+    expect(res.status).toBe(401);
   });
 });

@@ -1,11 +1,7 @@
-import { db } from "./src/lib/db";
-async function main() {
-  try {
-    const users = await db.user.findMany();
-    console.log("Users:", JSON.stringify(users));
-  } catch (e) {
-    console.error("Error:", e);
-  }
-  await db.$disconnect();
-}
-main();
+import { PrismaClient } from "@prisma/client";
+const p = new PrismaClient();
+await p.$connect();
+console.log("DB connected");
+const r = await p.$queryRawUnsafe("SELECT 1 as ok");
+console.log(JSON.stringify(r));
+await p.$disconnect();
