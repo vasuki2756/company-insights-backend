@@ -1,0 +1,338 @@
+// ─────────────────────────────────────────────────────────────
+// KITS Placement Intelligence Hub — Database Schema
+// PostgreSQL + pgvector extension
+// Prisma 5.8.0+
+// ─────────────────────────────────────────────────────────────
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions", "fullTextSearch"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector(map: "vector")]
+}
+
+// ─────────────────────────────────────────────────────────────
+// Users — Student, Recruiter, and Admin accounts
+// ─────────────────────────────────────────────────────────────
+enum UserRole {
+  student
+  recruiter
+  admin
+}
+
+/// Core user accounts for authentication and authorization.
+/// Supports three roles: student (placement seeker),
+/// recruiter (company representative), and admin (platform manager).
+model User {
+  id            String     @id @default(uuid()) @db.Uuid
+  email         String     @unique @db.VarChar(255)
+  name          String     @db.VarChar(255)
+  passwordHash  String     @map("password_hash") @db.VarChar(255)
+  role          UserRole   @default(student)
+  profileData   Json?      @map("profile_data") @db.JsonB
+  lastLogin     DateTime?  @map("last_login") @db.Timestamptz
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+
+  targetCompanies StudentTargetCompany[]
+  studentSkills   StudentSkill[]
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Companies — Normalized company master data
+// ─────────────────────────────────────────────────────────────
+/// Top-level company information. Each row represents one company
+/// that students can research and target for placements.
+model Company {
+  id                Int      @id @default(autoincrement())
+  name              String   @unique @db.VarChar(255)
+  shortName         String?  @map("short_name") @db.VarChar(100)
+  category          String?  @db.VarChar(100)
+  companyType       String?  @map("company_type") @db.VarChar(50)
+  incorporationYear Int?     @map("incorporation_year")
+  employeeSize      String?  @map("employee_size") @db.VarChar(50)
+  employeeCount     Int?     @map("employee_count")
+  headquarters      String?  @db.VarChar(500)
+  websiteUrl        String?  @map("website_url") @db.VarChar(500)
+  minCgpa           Decimal? @map("min_cgpa") @db.Decimal(3, 2)
+  package           String?  @db.VarChar(50)
+  selectionRate     String?  @map("selection_rate") @db.VarChar(50)
+  applicationDeadline DateTime? @map("application_deadline") @db.Date
+  driveDate         DateTime?   @map("drive_date") @db.Date
+  yoyGrowthRate     String?  @map("yoy_growth_rate") @db.VarChar(50)
+  glassdoorRating   Decimal? @map("glassdoor_rating") @db.Decimal(3, 1)
+  googleRating      Decimal? @map("google_rating") @db.Decimal(3, 1)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  profile             CompanyProfile?
+  embeddings          CompanyEmbedding[]
+  skillRequirements   CompanySkillRequirement[]
+  targetCompanies     StudentTargetCompany[]
+
+  @@index([category])
+  @@index([companyType])
+  @@index([minCgpa])
+  @@map("companies")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Company Profiles — The 22 intelligence sections (normalized)
+// ─────────────────────────────────────────────────────────────
+/// Detailed intelligence profile for each company, covering
+/// 22 sections: identity, overview, leadership, funding,
+/// presence, products, tech stack, partnerships, competitive
+/// landscape, market opportunity, ESG, culture, news, sales,
+/// risk, location, safety, career, brand, compensation,
+/// digital presence, and contact information.
+model CompanyProfile {
+  companyId             Int      @id @map("company_id")
+
+  // Identity & Overview
+  overviewText          String?  @map("overview_text") @db.Text
+  visionStatement       String?  @map("vision_statement") @db.Text
+  missionStatement      String?  @map("mission_statement") @db.Text
+  coreValues            String[] @map("core_values")
+  historyTimeline       String[] @map("history_timeline")
+
+  // Leadership
+  ceoName               String?  @map("ceo_name") @db.VarChar(255)
+  ceoLinkedinUrl        String?  @map("ceo_linkedin_url") @db.VarChar(500)
+  keyLeaders            String[] @map("key_leaders")
+  boardMembers          String[] @map("board_members")
+
+  // Financials
+  annualRevenue         String?  @map("annual_revenue") @db.VarChar(100)
+  annualProfit          String?  @map("annual_profit") @db.VarChar(100)
+  valuation             String?  @db.VarChar(100)
+  revenueMix            String?  @map("revenue_mix") @db.VarChar(255)
+  profitabilityStatus   String?  @map("profitability_status") @db.VarChar(100)
+  keyInvestors          String[] @map("key_investors")
+  totalCapitalRaised    String?  @map("total_capital_raised") @db.VarChar(100)
+  burnRate              String?  @map("burn_rate") @db.VarChar(50)
+  runwayMonths          Int?     @map("runway_months")
+
+  // Global Presence
+  operatingCountries    String[] @map("operating_countries")
+  officeCount           Int?     @map("office_count")
+  officeLocations       String[] @map("office_locations")
+
+  // Products & Services
+  offeringsDescription  String[] @map("offerings_description")
+  focusSectors          String[] @map("focus_sectors")
+  topCustomers          String[] @map("top_customers")
+
+  // Technology
+  techStack             String[] @map("tech_stack")
+  aiMlAdoptionLevel     String?  @map("ai_ml_adoption_level") @db.VarChar(50)
+  rAndDInvestment       String?  @map("r_and_d_investment") @db.VarChar(100)
+  intellectualProperty  String[] @map("intellectual_property")
+  cybersecurityPosture  String[] @map("cybersecurity_posture")
+
+  // Competitive
+  keyCompetitors        String[] @map("key_competitors")
+  marketSharePercentage String?  @map("market_share_percentage") @db.VarChar(50)
+  competitiveAdvantages String[] @map("competitive_advantages")
+  weaknessesGaps        String[] @map("weaknesses_gaps")
+
+  // Market
+  tam                   String?  @db.VarChar(100)
+  sam                   String?  @db.VarChar(100)
+  som                   String?  @db.VarChar(100)
+  strategicPriorities   String[] @map("strategic_priorities")
+  innovationRoadmap     String[] @map("innovation_roadmap")
+
+  // ESG & Culture
+  esgRatings            String[] @map("esg_ratings")
+  sustainabilityCsr     String?  @map("sustainability_csr") @db.Text
+  workCultureSummary    String?  @map("work_culture_summary") @db.Text
+  diversityInclusionScore Decimal? @map("diversity_inclusion_score") @db.Decimal(3, 1)
+  burnoutRisk           String?  @map("burnout_risk") @db.VarChar(50)
+  psychologicalSafety   String?  @map("psychological_safety") @db.VarChar(50)
+
+  // Career & Compensation
+  trainingSpend         String?  @map("training_spend") @db.VarChar(50)
+  mentorshipAvailability String[] @map("mentorship_availability")
+  internalMobility     String?  @map("internal_mobility") @db.VarChar(100)
+  avgRetentionTenure    Decimal? @map("avg_retention_tenure") @db.Decimal(3, 1)
+  employeeTurnover      String?  @map("employee_turnover") @db.VarChar(50)
+  fixedVsVariablePay    String?  @map("fixed_vs_variable_pay") @db.VarChar(100)
+  esopsIncentives       String[] @map("esops_incentives")
+  familyHealthInsurance String[] @map("family_health_insurance")
+
+  // Ratings
+  glassdoorPros         String?  @map("glassdoor_pros") @db.Text
+  glassdoorCons         String?  @map("glassdoor_cons") @db.Text
+  ratingCombined        Decimal? @map("rating_combined") @db.Decimal(3, 1)
+  indeedRating          Decimal? @map("indeed_rating") @db.Decimal(3, 1)
+  googleRating          Decimal? @map("google_rating") @db.Decimal(3, 1)
+  brandValue            String?  @map("brand_value") @db.VarChar(100)
+  brandSentimentScore   Decimal? @map("brand_sentiment_score") @db.Decimal(3, 1)
+
+  // Contact
+  primaryContactEmail   String?  @map("primary_contact_email") @db.VarChar(255)
+  primaryPhoneNumber    String?  @map("primary_phone_number") @db.VarChar(50)
+
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("company_profiles")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Company Embeddings — pgvector for RAG retrieval
+// ─────────────────────────────────────────────────────────────
+/// Embedding vectors for each section of a company's profile.
+/// Used for semantic search and RAG-based AI assistant queries.
+/// Embedding dimension: 384 (nomic-embed-text / all-MiniLM-L6-v2).
+model CompanyEmbedding {
+  id          Int      @id @default(autoincrement())
+  companyId   Int      @map("company_id")
+  sectionType String   @map("section_type") @db.VarChar(50)
+  content     String   @db.Text
+  embedding   Unsupported("vector(384)")?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([sectionType])
+  @@map("company_embeddings")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Skills — Master skill list
+// ─────────────────────────────────────────────────────────────
+/// Canonical list of all skills tracked by the platform.
+/// Categories include backend, frontend, devops, ml, mobile, etc.
+model Skill {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(255)
+  category    String?  @db.VarChar(100)
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  skillRequirements CompanySkillRequirement[]
+  topics            SkillTopic[]
+  studentSkills     StudentSkill[]
+
+  @@map("skills")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Company Skill Requirements — Per-company skill expectations
+// ─────────────────────────────────────────────────────────────
+/// Maps the proficiency level a company requires for each skill.
+/// Levels 1-10 correspond to Bloom's Taxonomy:
+///   1-2: Remember/Understand (CU)
+///   3-4: Apply (AP)
+///   5-6: Analyze (AS)
+///   7-8: Evaluate (EV)
+///   9-10: Create (CR)
+enum SkillCriticality {
+  Critical
+  Important
+  Baseline
+}
+
+model CompanySkillRequirement {
+  companyId         Int              @map("company_id")
+  skillId           Int              @map("skill_id")
+  requiredLevel     Int              @map("required_level")
+  criticality       SkillCriticality @default(Important)
+  proficiencyLevel  Int?             @map("proficiency_level")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  skill   Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([companyId, skillId])
+  @@map("company_skill_requirements")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Skill Topics — 10-level breakdown per skill
+// ─────────────────────────────────────────────────────────────
+/// Defines the specific topics to master at each level (1-10)
+/// for a given skill, along with optional learning resources.
+model SkillTopic {
+  id          Int     @id @default(autoincrement())
+  skillId     Int     @map("skill_id")
+  levelNumber Int     @map("level_number")
+  topicName   String  @map("topic_name") @db.VarChar(255)
+  description String? @db.Text
+  resourcesUrl String? @map("resources_url") @db.VarChar(500)
+
+  skill       Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@index([skillId, levelNumber])
+  @@map("skill_topics")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Student Target Companies — Favorites and tracking
+// ─────────────────────────────────────────────────────────────
+/// Tracks which companies a student has favorited or is targeting
+/// for placement preparation.
+model StudentTargetCompany {
+  userId      String   @map("user_id") @db.Uuid
+  companyId   Int      @map("company_id")
+  addedAt     DateTime @default(now()) @map("added_at") @db.Timestamptz
+  isFavorited Boolean  @default(true) @map("is_favorited")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@id([userId, companyId])
+  @@map("student_target_companies")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Student Skills — Self-assessed proficiency levels
+// ─────────────────────────────────────────────────────────────
+/// Each student's self-assessed skill level (1-10) for comparison
+/// against company requirements.
+model StudentSkill {
+  userId       String   @map("user_id") @db.Uuid
+  skillId      Int      @map("skill_id")
+  currentLevel Int      @map("current_level")
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([userId, skillId])
+  @@map("student_skills")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Audit Logs — Compliance and security tracking
+// ─────────────────────────────────────────────────────────────
+/// Immutable audit trail for all significant actions performed
+/// in the system. Required for SOC 2 and similar compliance.
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  userId       String?  @map("user_id") @db.Uuid
+  action       String   @db.VarChar(100)
+  resourceType String?  @map("resource_type") @db.VarChar(100)
+  resourceId   String?  @map("resource_id") @db.VarChar(100)
+  changes      Json?    @db.JsonB
+  ipAddress    String?  @map("ip_address") @db.VarChar(45)
+  userAgent    String?  @map("user_agent") @db.VarChar(500)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([action])
+  @@map("audit_logs")
+}
