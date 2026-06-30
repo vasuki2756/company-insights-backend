@@ -1,13 +1,9 @@
-// ─────────────────────────────────────────────────────────────
-// KITS Placement Intelligence Hub — AI Assistant Service
-// Orchestrates chat sessions, RAG retrieval, and LLM generation
-// ─────────────────────────────────────────────────────────────
-
 import { randomUUID } from "node:crypto";
 import pino from "pino";
 import { db } from "../lib/db";
 import { getRedisClient } from "../lib/redis";
-import { generateResponse, generateResponseStream } from "../lib/ollama";
+import { generateResponse as groqGenerate } from "../lib/llm";
+import { runAgent } from "../agents/placementAgent";
 import { semanticSearch, searchByCompanyId } from "./retrievalService";
 import {
   buildSystemPrompt,
@@ -30,22 +26,12 @@ import { CHAT_SESSION_TTL, MAX_CONTEXT_LENGTH } from "../types/ai";
 
 const logger = pino({ name: "ai-assistant" });
 
-// ─── Redis Keys ───────────────────────────────────────────────
-
 const sessionKey = (userId: string, sessionId: string) =>
   `ai:session:${userId}:${sessionId}`;
 
 const userSessionsKey = (userId: string) =>
   `ai:user:${userId}:sessions`;
 
-// ─── Chat Session Management ──────────────────────────────────
-
-/**
- * Create a new chat session for a user.
- * Session data is stored in Redis with a configurable TTL (default: 24h).
- * @param userId - The authenticated user's ID
- * @returns The unique session ID
- */
 export async function createChatSession(userId: string): Promise<string> {
   const sessionId = randomUUID();
   const now = new Date();
@@ -64,25 +50,17 @@ export async function createChatSession(userId: string): Promise<string> {
     await redis.set(sessionKey(userId, sessionId), JSON.stringify(session), {
       EX: CHAT_SESSION_TTL,
     });
-    // Track user session list
     await redis.sAdd(userSessionsKey(userId), sessionId);
     await redis.expire(userSessionsKey(userId), CHAT_SESSION_TTL);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.error({ userId, error: message }, "Failed to create chat session in Redis");
-    // Return the sessionId anyway — caller can still use it
   }
 
   logger.info({ userId, sessionId }, "Chat session created");
   return sessionId;
 }
 
-/**
- * Retrieve a chat session from Redis.
- * @param userId - The authenticated user's ID
- * @param sessionId - The session ID to retrieve
- * @returns The session or null if not found/expired
- */
 export async function getChatSession(
   userId: string,
   sessionId: string,
@@ -93,7 +71,6 @@ export async function getChatSession(
     if (!raw) return null;
 
     const session = JSON.parse(raw) as AIChatSession;
-    // Convert timestamp strings back to Date objects
     session.messages = session.messages.map((m) => ({
       ...m,
       timestamp: new Date(m.timestamp),
@@ -109,13 +86,6 @@ export async function getChatSession(
   }
 }
 
-/**
- * Save a message to a chat session in Redis.
- * Maintains the last 50 messages to limit memory use.
- * @param userId - The authenticated user's ID
- * @param sessionId - The session ID
- * @param message - The message to append
- */
 export async function saveChatMessage(
   userId: string,
   sessionId: string,
@@ -132,14 +102,12 @@ export async function saveChatMessage(
     const session = JSON.parse(raw) as AIChatSession;
     session.messages.push(message);
 
-    // Keep only the last 50 messages
     if (session.messages.length > 50) {
       session.messages = session.messages.slice(session.messages.length - 50);
     }
 
     session.updatedAt = new Date();
 
-    // Re-save with updated TTL
     await redis.set(sessionKey(userId, sessionId), JSON.stringify(session), {
       EX: CHAT_SESSION_TTL,
     });
@@ -149,11 +117,6 @@ export async function saveChatMessage(
   }
 }
 
-/**
- * Delete a chat session from Redis.
- * @param userId - The authenticated user's ID
- * @param sessionId - The session ID to delete
- */
 export async function deleteChatSession(
   userId: string,
   sessionId: string,
@@ -169,29 +132,14 @@ export async function deleteChatSession(
   }
 }
 
-// ─── Response Generation ──────────────────────────────────────
-
-/**
- * Generate an AI response using RAG.
- * Retrieves relevant context, builds a prompt with conversation history,
- * generates a response, saves both user and assistant messages.
- *
- * @param userId - The authenticated user's ID
- * @param sessionId - The chat session ID
- * @param userMessage - The user's latest message
- * @param companyId - Optional company ID to scope the search
- * @returns The response text and source citations
- */
 export async function generateAssistantResponse(
   userId: string,
   sessionId: string,
   userMessage: string,
   companyId?: number,
 ): Promise<{ response: string; sources: RetrievalSource[] }> {
-  // 1. Get or create session
   let session = await getChatSession(userId, sessionId);
   if (!session) {
-    // Create a new session if expired
     await createChatSession(userId);
     session = await getChatSession(userId, sessionId);
     if (!session) {
@@ -199,7 +147,6 @@ export async function generateAssistantResponse(
     }
   }
 
-  // 2. Save user message
   const userMsg: AIChatMessage = {
     role: "user",
     content: userMessage,
@@ -207,7 +154,6 @@ export async function generateAssistantResponse(
   };
   await saveChatMessage(userId, sessionId, userMsg);
 
-  // 3. Retrieve context
   let results: RetrievalResult[];
   if (companyId) {
     results = await searchByCompanyId(companyId, userMessage);
@@ -224,21 +170,17 @@ export async function generateAssistantResponse(
     MAX_CONTEXT_LENGTH,
   );
 
-  // 4. Build conversation history (last 6 messages for context but not too many tokens)
   const historyMessages = session.messages.slice(-6);
   const history = historyMessages
     .map((m) => `${m.role === "user" ? "Student" : "Assistant"}: ${m.content}`)
     .join("\n");
 
-  // 5. Build system prompt
   const systemPrompt = buildSystemPrompt();
   const ragPrompt = buildRagPrompt(userMessage, context, history);
   const fullPrompt = `${systemPrompt}\n\n${ragPrompt}`;
 
-  // 6. Generate response
-  const responseText = await generateResponse(fullPrompt);
+  const responseText = await groqGenerate(fullPrompt);
 
-  // 7. Save assistant message
   const assistantMsg: AIChatMessage = {
     role: "assistant",
     content: responseText,
@@ -246,7 +188,6 @@ export async function generateAssistantResponse(
   };
   await saveChatMessage(userId, sessionId, assistantMsg);
 
-  // 8. Format sources
   const sources: RetrievalSource[] = results.slice(0, 5).map((r) => ({
     companyId: r.companyId,
     companyName: r.company.name,
@@ -258,19 +199,18 @@ export async function generateAssistantResponse(
   return { response: responseText, sources };
 }
 
-/**
- * Answer a question specifically about one company.
- * Uses all available embeddings for that company as context.
- *
- * @param companyId - The company ID
- * @param question - The user's question about the company
- * @returns Answer with cited sources
- */
+export async function generateAgentResponse(
+  userId: string,
+  query: string,
+  companyId?: number,
+): Promise<string> {
+  return runAgent(query, userId, companyId);
+}
+
 export async function answerCompanyQuestion(
   companyId: number,
   question: string,
 ): Promise<{ answer: string; sources: string[] }> {
-  // Fetch company info
   const company = await db.company.findUnique({
     where: { company_id: companyId },
     select: { name: true, category: true },
@@ -280,7 +220,6 @@ export async function answerCompanyQuestion(
     throw new Error(`Company with ID ${companyId} not found`);
   }
 
-  // Retrieve all relevant sections for this company
   const results = await searchByCompanyId(companyId, question);
 
   const profileText = results
@@ -289,26 +228,17 @@ export async function answerCompanyQuestion(
 
   const prompt = buildCompanyQuestionPrompt(company.name ?? "Company", question, profileText);
 
-  // Generate response with lower temperature for factual accuracy
-  const answer = await generateResponse(prompt, undefined, { temperature: 0.3 });
+  const answer = await groqGenerate(prompt);
 
   const sources = results.map((r) => `${r.sectionType} (${r.company.name})`);
 
   return { answer, sources };
 }
 
-/**
- * Analyze skill gaps between a student and a target company.
- *
- * @param userId - The student's user ID
- * @param companyId - The target company ID
- * @returns Structured skill gap analysis
- */
 export async function skillGapAnalysis(
   userId: string,
   companyId: number,
 ): Promise<SkillGapResponse> {
-  // Get student's skills
   const student = await db.user.findUnique({
     where: { userId: userId },
     include: {
@@ -324,7 +254,6 @@ export async function skillGapAnalysis(
     throw new Error("User not found");
   }
 
-  // Get company's skill requirements
   const company = await db.company.findUnique({
     where: { company_id: companyId },
     select: { name: true, category: true },
@@ -339,7 +268,6 @@ export async function skillGapAnalysis(
     include: { skill_set_master: true },
   });
 
-  // Build structured skill data
   const studentSkillMap = new Map(
     student.studentSkills.map((s) => [s.skill.skill_set_name.toLowerCase(), s.proficiencyLevel]),
   );
@@ -364,7 +292,6 @@ export async function skillGapAnalysis(
     };
   });
 
-  // Format for LLM analysis
   const studentSkillsText = student.studentSkills
     .map((s) => `${s.skill.skill_set_name}: Level ${s.proficiencyLevel}`)
     .join("\n");
@@ -374,18 +301,11 @@ export async function skillGapAnalysis(
     .join("\n");
 
   const prompt = buildSkillGapPrompt(studentSkillsText, companyRequirementsText, company.name ?? "Company");
-  const analysis = await generateResponse(prompt, undefined, { temperature: 0.4 });
+  const analysis = await groqGenerate(prompt);
 
   return { analysis, gaps: gaps.sort((a, b) => b.gap - a.gap) };
 }
 
-/**
- * Generate interview preparation questions for a company.
- *
- * @param companyId - The target company ID
- * @param count - Number of questions to generate (default: 5)
- * @returns Questions, tech stack, and company info
- */
 export async function generateInterviewPrepQuestions(
   companyId: number,
   count: number = 5,
@@ -402,9 +322,8 @@ export async function generateInterviewPrepQuestions(
   }
 
   const fullJson = company.company_json?.full_json as Record<string, unknown> | undefined;
-  const shortJson = company.company_json?.short_json as Record<string, unknown> | undefined;
-  const techStack = (fullJson?.techStack ?? shortJson?.techStack ?? []) as string[];
-  const companyDescription = (fullJson?.overview_text ?? shortJson ?? `${company.name} is a ${company.category ?? ""} company.`) as string;
+  const techStack = (fullJson?.techStack ?? []) as string[];
+  const companyDescription = (fullJson?.overviewText ?? `${company.name} is a ${company.category ?? ""} company.`) as string;
 
   const prompt = buildInterviewPrepPrompt(
     company.name ?? "Company",
@@ -413,9 +332,8 @@ export async function generateInterviewPrepQuestions(
     count,
   );
 
-  const response = await generateResponse(prompt, undefined, { temperature: 0.5 });
+  const response = await groqGenerate(prompt);
 
-  // Parse into questions array
   const questions = response
     .split(/\d+\./)
     .map((q) => q.trim())

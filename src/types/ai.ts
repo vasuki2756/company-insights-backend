@@ -87,10 +87,11 @@ export interface InterviewQuestionsResponse {
 }
 
 export interface AIHealthResponse {
-  status: "healthy" | "unavailable";
+  status: "healthy" | "degraded" | "unavailable";
   model: string;
   embedModel: string;
   error?: string;
+  warning?: string;
 }
 
 export interface EmbeddingProgress {

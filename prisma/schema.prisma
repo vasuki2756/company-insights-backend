@@ -724,6 +724,7 @@ model company_skill_levels {
   skill_set_id                  Int
   required_level                Int
   required_proficiency_level_id Int
+  criticality                   SkillCriticality?  @default(Important)
   created_at                    DateTime?          @default(now()) @db.Timestamptz(6)
   proficiency_levels            proficiency_levels @relation(fields: [required_proficiency_level_id], references: [proficiency_level_id], onDelete: NoAction, onUpdate: NoAction)
   skill_set_master              skill_set_master   @relation(fields: [skill_set_id], references: [skill_set_id], onDelete: Cascade, onUpdate: NoAction)
@@ -732,6 +733,14 @@ model company_skill_levels {
   @@unique([company_id, skill_set_id], map: "unique_company_skill")
   @@index([company_id], map: "idx_company_skill_levels_company")
   @@index([skill_set_id], map: "idx_company_skill_levels_skill")
+}
+
+enum SkillCriticality {
+  Critical
+  Important
+  Baseline
+
+  @@map("SkillCriticality")
 }
 
 model company_strategic_priorities {

@@ -12,6 +12,7 @@ import {
   getChatSession,
   deleteChatSession,
   generateAssistantResponse,
+  generateAgentResponse,
   answerCompanyQuestion,
   skillGapAnalysis,
   generateInterviewPrepQuestions,
@@ -115,6 +116,51 @@ router.post(
       res.status(500).json({
         success: false,
         error: "Failed to generate response. Please ensure Ollama is running.",
+      } satisfies ApiResponse);
+    }
+  },
+);
+
+// ─── POST /api/v1/ai/agent ─────────────────────────────────────
+// Run a query through the LangGraph agent (tool-using AI)
+
+router.post(
+  "/agent",
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: "Authentication required" } satisfies ApiResponse);
+        return;
+      }
+
+      const parsed = z.object({
+        query: z.string().min(1).max(2000),
+        companyId: z.number().int().positive().optional(),
+      }).safeParse(req.body);
+
+      if (!parsed.success) {
+        const message = parsed.error.errors[0]?.message ?? "Invalid request";
+        res.status(400).json({ success: false, error: message } satisfies ApiResponse);
+        return;
+      }
+
+      const response = await generateAgentResponse(
+        req.user.sub,
+        parsed.data.query,
+        parsed.data.companyId,
+      );
+
+      res.json({
+        success: true,
+        data: { response },
+      } satisfies ApiResponse);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error({ error: message }, "Agent query failed");
+      res.status(500).json({
+        success: false,
+        error: "Agent query failed. Ensure GROQ_API_KEY is set.",
       } satisfies ApiResponse);
     }
   },
@@ -360,28 +406,29 @@ router.get(
   "/health",
   async (_req: Request, res: Response): Promise<void> => {
     try {
-      const healthy = await checkOllamaHealth();
+      const groqAvailable = !!process.env.GROQ_API_KEY;
+      const ollamaHealthy = await checkOllamaHealth();
       const response: AIHealthResponse = {
-        status: healthy ? "healthy" : "unavailable",
-        model: process.env.OLLAMA_MODEL ?? "llama3.2",
+        status: groqAvailable ? "healthy" : "degraded",
+        model: process.env.GROQ_MODEL ?? "llama3-70b-8192",
         embedModel: process.env.OLLAMA_EMBED_MODEL ?? "nomic-embed-text",
       };
 
-      if (!healthy) {
-        response.error = "Ollama model(s) not found. Run: ollama pull " +
-          `${process.env.OLLAMA_MODEL ?? "llama3.2"} && ` +
-          `ollama pull ${process.env.OLLAMA_EMBED_MODEL ?? "nomic-embed-text"}`;
+      if (!groqAvailable) {
+        response.error = "GROQ_API_KEY not set. Text generation will fail.";
+      } else if (!ollamaHealthy) {
+        response.warning = "Ollama unavailable — embeddings will fail, but text generation via Groq works.";
       }
 
-      const statusCode = healthy ? 200 : 503;
+      const statusCode = groqAvailable ? 200 : 503;
       res.status(statusCode).json(response);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       res.status(503).json({
         status: "unavailable",
-        model: process.env.OLLAMA_MODEL ?? "llama3.2",
+        model: process.env.GROQ_MODEL ?? "llama3-70b-8192",
         embedModel: process.env.OLLAMA_EMBED_MODEL ?? "nomic-embed-text",
-        error: `Ollama connection failed: ${message}`,
+        error: `AI health check failed: ${message}`,
       } as AIHealthResponse);
     }
   },
