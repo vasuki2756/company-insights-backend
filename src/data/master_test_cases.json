@@ -1,0 +1,122 @@
+[
+  {
+    "id": "MC-001",
+    "applicable_to": "Per-Parameter",
+    "parameters": [],
+    "applies_when": "nullable == False",
+    "rule_id": "not_blank",
+    "test_case_category": "Presence",
+    "test_case_type": "negative",
+    "priority": "P0",
+    "description": "Non-nullable parameters must contain a value.",
+    "example_scenarios": "Name cannot be empty"
+  },
+  {
+    "id": "MC-002",
+    "applicable_to": "Per-Parameter",
+    "parameters": [],
+    "applies_when": "nullable == False",
+    "rule_id": "not_placeholder",
+    "test_case_category": "Quality",
+    "test_case_type": "negative",
+    "priority": "P0",
+    "description": "Non-nullable parameters must not be 'Not Found', 'N/A', 'Unknown', etc.",
+    "example_scenarios": "Headquarters Address = 'Not Found'"
+  },
+  {
+    "id": "MC-003",
+    "applicable_to": "Per-Parameter",
+    "parameters": [],
+    "applies_when": "ac == 'Atomic'",
+    "rule_id": "atomic_no_delimiter",
+    "test_case_category": "Format",
+    "test_case_type": "negative",
+    "priority": "P1",
+    "description": "Atomic parameters must be a single value with no ';' delimiter.",
+    "example_scenarios": "Category = 'Public; Private'"
+  },
+  {
+    "id": "MC-010",
+    "applicable_to": "Per-Parameter",
+    "parameters": [],
+    "applies_when": "ac == 'Composite'",
+    "rule_id": "composite_min_count",
+    "test_case_category": "Format",
+    "test_case_type": "negative",
+    "priority": "P1",
+    "description": "Composite parameters must contain at least 'min' elements.",
+    "example_scenarios": "Operating Countries = 'India' when minimum is 2"
+  },
+  {
+    "id": "MC-011",
+    "applicable_to": "Per-Parameter",
+    "parameters": [],
+    "applies_when": "ac == 'Composite'",
+    "rule_id": "composite_max_count",
+    "test_case_category": "Format",
+    "test_case_type": "negative",
+    "priority": "P1",
+    "description": "Composite parameters must contain at most 'max' elements.",
+    "example_scenarios": "Operating Countries has 15 entries when max is 10"
+  },
+  {
+    "id": "MC-012",
+    "applicable_to": "Per-Parameter",
+    "parameters": [],
+    "applies_when": "ac == 'Composite'",
+    "rule_id": "composite_elements_nonempty",
+    "test_case_category": "Format",
+    "test_case_type": "negative",
+    "priority": "P1",
+    "description": "No empty values between delimiters (e.g. 'A;; B').",
+    "example_scenarios": "Focus Sectors = 'Technology;; Finance'"
+  },
+  {
+    "id": "MC-020",
+    "applicable_to": "Per-Parameter",
+    "parameters": [],
+    "applies_when": "True",
+    "rule_id": "no_newlines",
+    "test_case_category": "Hygiene",
+    "test_case_type": "negative",
+    "priority": "P2",
+    "description": "Cells must be single-line so they paste cleanly into Excel/CSV.",
+    "example_scenarios": "Overview Text contains multiple lines"
+  },
+  {
+    "id": "MC-021",
+    "applicable_to": "Per-Parameter",
+    "parameters": [],
+    "applies_when": "True",
+    "rule_id": "no_bullets",
+    "test_case_category": "Hygiene",
+    "test_case_type": "negative",
+    "priority": "P2",
+    "description": "No '- ', '* ', bullet, or '1. ' list markers inside a cell.",
+    "example_scenarios": "Offerings Description = '- Product A - Product B'"
+  },
+  {
+    "id": "MC-022",
+    "applicable_to": "Per-Parameter",
+    "parameters": [],
+    "applies_when": "True",
+    "rule_id": "no_leading_trailing_space",
+    "test_case_category": "Hygiene",
+    "test_case_type": "negative",
+    "priority": "P2",
+    "description": "Values must be trimmed.",
+    "example_scenarios": "Company Name = '  Acme Corp  '"
+  },
+  {
+    "id": "MC-030",
+    "applicable_to": "Per-Parameter",
+    "parameters": [],
+    "applies_when": "data_type == 'url'",
+    "rule_id": "url_shape",
+    "test_case_category": "Format",
+    "test_case_type": "negative",
+    "priority": "P1",
+    "description": "URL parameters must start with http:// or https:// and contain no spaces.",
+    "example_scenarios": "Website URL = 'accenture dot com'"
+  }
+]

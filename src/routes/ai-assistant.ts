@@ -21,6 +21,10 @@ import { semanticSearch, searchCompanies } from "../services/retrievalService";
 import { checkOllamaHealth } from "../lib/ollama";
 import type { ApiResponse } from "../types/auth";
 import type { AIHealthResponse } from "../types/ai";
+import {
+  runResearch,
+  runFullPipeline,
+} from "../services/researchService";
 
 const logger = pino({ name: "ai-routes" });
 const router = Router();
@@ -115,7 +119,7 @@ router.post(
       logger.error({ error: message }, "Failed to generate AI response");
       res.status(500).json({
         success: false,
-        error: "Failed to generate response. Please ensure Ollama is running.",
+        error: `Failed to generate response: ${message}`,
       } satisfies ApiResponse);
     }
   },
@@ -282,7 +286,7 @@ router.post(
       logger.error({ error: message }, "Failed to answer company question");
       res.status(500).json({
         success: false,
-        error: "Failed to answer question. Ensure Ollama is running.",
+        error: `Failed to answer question: ${message}`,
       } satisfies ApiResponse);
     }
   },
@@ -395,6 +399,166 @@ router.get(
       const message = error instanceof Error ? error.message : String(error);
       logger.error({ error: message }, "Search failed");
       res.status(500).json({ success: false, error: "Search failed" } satisfies ApiResponse);
+    }
+  },
+);
+
+// ─── POST /api/v1/ai/research ──────────────────────────────────
+// Run company research across multiple LLM providers
+
+router.post(
+  "/research",
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: "Authentication required" } satisfies ApiResponse);
+        return;
+      }
+
+      const parsed = z.object({
+        company: z.string().min(1, "Company name is required"),
+        providers: z.array(z.string()).optional(),
+      }).safeParse(req.body);
+
+      if (!parsed.success) {
+        res.status(400).json({ success: false, error: parsed.error.errors[0]?.message ?? "Invalid request" } satisfies ApiResponse);
+        return;
+      }
+
+      const result = await runResearch(parsed.data.company, parsed.data.providers);
+
+      res.json({
+        success: true,
+        data: result,
+      } satisfies ApiResponse);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error({ error: message }, "Research failed");
+      res.status(500).json({
+        success: false,
+        error: "Research failed. Ensure at least one LLM provider is configured.",
+      } satisfies ApiResponse);
+    }
+  },
+);
+
+// ─── POST /api/v1/ai/pipeline ──────────────────────────────────
+// Run the full research pipeline (research → consolidation → skills → hiring)
+
+router.post(
+  "/pipeline",
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: "Authentication required" } satisfies ApiResponse);
+        return;
+      }
+
+      const parsed = z.object({
+        company: z.string().min(1, "Company name is required"),
+        providers: z.array(z.string()).optional(),
+      }).safeParse(req.body);
+
+      if (!parsed.success) {
+        res.status(400).json({ success: false, error: parsed.error.errors[0]?.message ?? "Invalid request" } satisfies ApiResponse);
+        return;
+      }
+
+      const result = await runFullPipeline(parsed.data.company, parsed.data.providers);
+
+      res.json({
+        success: true,
+        data: result,
+      } satisfies ApiResponse);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error({ error: message }, "Pipeline failed");
+      res.status(500).json({
+        success: false,
+        error: "Pipeline failed. Ensure at least one LLM provider is configured.",
+      } satisfies ApiResponse);
+    }
+  },
+);
+
+// ─── POST /api/v1/ai/pipeline/run ──────────────────────────────
+// Run the full validated LangGraph research pipeline with surgical retry
+
+router.post(
+  "/pipeline/run",
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: "Authentication required" } satisfies ApiResponse);
+        return;
+      }
+
+      const parsed = z.object({
+        company: z.string().min(1, "Company name is required"),
+      }).safeParse(req.body);
+
+      if (!parsed.success) {
+        res.status(400).json({ success: false, error: parsed.error.errors[0]?.message ?? "Invalid request" } satisfies ApiResponse);
+        return;
+      }
+
+      const { runFullPipeline_v2 } = await import("../services/pipelineService");
+      const result = await runFullPipeline_v2(parsed.data.company);
+
+      res.json({
+        success: true,
+        data: result,
+      } satisfies ApiResponse);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error({ error: message }, "Pipeline v2 failed");
+      res.status(500).json({
+        success: false,
+        error: "Pipeline failed. Ensure at least one LLM provider is configured.",
+      } satisfies ApiResponse);
+    }
+  },
+);
+
+// ─── POST /api/v1/ai/pipeline/gate ────────────────────────────
+// Run only the validation gate against existing data
+
+router.post(
+  "/pipeline/gate",
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: "Authentication required" } satisfies ApiResponse);
+        return;
+      }
+
+      const parsed = z.object({
+        record: z.record(z.string(), z.unknown()),
+      }).safeParse(req.body);
+
+      if (!parsed.success) {
+        res.status(400).json({ success: false, error: parsed.error.errors[0]?.message ?? "Invalid request" } satisfies ApiResponse);
+        return;
+      }
+
+      const { runDataQualityGate } = await import("../lib/validation/gate");
+      const result = runDataQualityGate(parsed.data.record);
+
+      res.json({
+        success: true,
+        data: result,
+      } satisfies ApiResponse);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error({ error: message }, "Gate validation failed");
+      res.status(500).json({
+        success: false,
+        error: "Gate validation failed.",
+      } satisfies ApiResponse);
     }
   },
 );
